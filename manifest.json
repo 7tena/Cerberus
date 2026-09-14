@@ -1,0 +1,44 @@
+{
+  "manifest_version": "0.4",
+  "name": "cerberus",
+  "version": "1.0.0",
+  "description": "MCP access-control server enforcing least-privilege and audit logging for AI coding agents",
+  "author": {
+    "name": "Atheena",
+    "email": "athenarenjit@gmail.com"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "${__dirname}/server.py"
+      ],
+      "env": {
+        "REPO_PATH": "${user_config.repo_path}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "search_codebase"
+    }
+  ],
+  "user_config": {
+    "repo_path": {
+      "type": "directory",
+      "title": "sandbox_repo",
+      "description": "Path to the codebase this server operates on",
+      "required": true,
+      "sensitive": false
+    }
+  },
+  "keywords": ["mcp", "access-control", "security", "ai-agents", "audit-logging"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/7tena/cerberus"
+  }
+}
