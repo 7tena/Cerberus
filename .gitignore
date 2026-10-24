@@ -1,0 +1,3 @@
+*.mcpb
+.venv/
+__pycache__/
