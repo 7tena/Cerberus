@@ -58,13 +58,19 @@ def log_event(tool: str, arguments: dict, outcome: str, detail: str = "") -> Non
 init_db()
 
 
+MAX_SNIPPETS_PER_FILE = 3
+MAX_LINE_LEN = 200
+
+
 @mcp.tool()
 def search_codebase(query: str) -> str:
-    """Search the codebase for files containing the given text. Read-only."""
-    matches = []
+    """Search the codebase for the given text. Returns matching lines
+    with file path and line number. Read-only."""
+    results = []
     withheld = 0
+    q = query.lower()
 
-    for path in REPO_PATH.rglob("*"):
+    for path in sorted(REPO_PATH.rglob("*")):
         if not path.is_file():
             continue
 
@@ -80,24 +86,65 @@ def search_codebase(query: str) -> str:
         except (UnicodeDecodeError, PermissionError):
             continue
 
-        if query.lower() in text.lower():
-            if restricted:
-                withheld += 1  # counted for the audit log, never shown to the agent
-            else:
-                matches.append(str(relative))
+        hits = [
+            (n, line.strip())
+            for n, line in enumerate(text.splitlines(), start=1)
+            if q in line.lower()
+        ]
+        if not hits:
+            continue
 
-    outcome = "partial" if withheld else "allowed"
+        if restricted:
+            withheld += 1  # logged, never shown to the agent
+            continue
+
+        for n, line in hits[:MAX_SNIPPETS_PER_FILE]:
+            results.append(f"{relative}:{n}: {line[:MAX_LINE_LEN]}")
+
     log_event(
         "search_codebase",
         {"query": query},
-        outcome,
-        f"matches_returned={len(matches)}, matches_withheld={withheld}",
+        "partial" if withheld else "allowed",
+        f"lines_returned={len(results)}, files_withheld={withheld}",
     )
 
-    if not matches:
+    if not results:
         return f"No matches found for '{query}'."
-    return "Matches found in:\n" + "\n".join(matches)
+    return "\n".join(results)
 
+@mcp.resource("cerberus://audit-log")
+def audit_log_resource() -> str:
+    """Recent audit log entries. Not available to guest role."""
+    if ROLE != "engineer":
+        return "Audit log is not available for this role."
+
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        rows = conn.execute(
+            "SELECT ts, tool, role, arguments, outcome, detail "
+            "FROM audit_log ORDER BY id DESC LIMIT 50"
+        ).fetchall()
+
+    if not rows:
+        return "No audit entries yet."
+
+    return "\n".join(
+        f"{ts} | {tool} | role={role} | {arguments} | {outcome} | {detail}"
+        for ts, tool, role, arguments, outcome, detail in rows
+    )
+
+
+@mcp.resource("cerberus://access-policy")
+def access_policy_resource() -> str:
+    """Describes what the current role may see."""
+    if ROLE != "engineer":
+        return "Access is restricted by role. Contact an administrator for details."
+
+    return (
+        f"Current role: {ROLE}\n"
+        f"Never accessible to any role: {sorted(FORBIDDEN_DIRS)}\n"
+        f"Hidden from guest role only: {sorted(GUEST_RESTRICTED_DIRS)}\n"
+        "Write access: none (propose_edit is not yet implemented)"
+    )
 
 if __name__ == "__main__":
     mcp.run()
