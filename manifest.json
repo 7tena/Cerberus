@@ -17,7 +17,8 @@
         "${__dirname}/server.py"
       ],
       "env": {
-        "REPO_PATH": "${user_config.repo_path}"
+        "REPO_PATH": "${user_config.repo_path}",
+        "ROLE": "${user_config.role}"
       }
     }
   },
@@ -31,6 +32,13 @@
       "type": "directory",
       "title": "sandbox_repo",
       "description": "Path to the codebase this server operates on",
+      "required": true,
+      "sensitive": false
+    },
+    "role": {
+      "type": "string",
+      "title": "Access role",
+      "description": "Either 'guest' or 'engineer'. Controls which paths search_codebase can see.",
       "required": true,
       "sensitive": false
     }
