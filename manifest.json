@@ -25,6 +25,9 @@
   "tools": [
     {
       "name": "search_codebase"
+    },
+    {
+      "name": "propose_edit"
     }
   ],
   "user_config": {
