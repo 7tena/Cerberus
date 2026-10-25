@@ -1,4 +1,5 @@
 """Shared policy and storage for Cerberus (used by server.py and approve.py)."""
+import difflib
 import json
 import sqlite3
 from contextlib import closing
@@ -77,3 +78,26 @@ def is_restricted(relative: Path, role: str) -> bool:
     return top_level in FORBIDDEN_DIRS or (
         role == "guest" and top_level in GUEST_RESTRICTED_DIRS
     )
+
+def safe(text: str) -> str:
+    """Agent-controlled text must not be able to drive the terminal."""
+    return "".join(
+        c if c in "\n\t" or c.isprintable() else f"\\x{ord(c):02x}" for c in text
+    )
+
+
+def render_diff(path: str, old: str, new: str) -> str:
+    if old == new:
+        return "(no changes)"
+    lines = list(
+        difflib.unified_diff(
+            old.splitlines(),
+            new.splitlines(),
+            fromfile=f"a/{path}",
+            tofile=f"b/{path}",
+            lineterm="",
+        )
+    )
+    if not lines:
+        return "(only line-ending or trailing-newline differences)"
+    return safe("\n".join(lines))

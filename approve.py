@@ -7,7 +7,6 @@ Never expose this to the agent.
   uv run approve.py --repo /path/to/sandbox_repo reject 1
 """
 import argparse
-import difflib
 import hashlib
 import os
 import sqlite3
@@ -17,16 +16,9 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
-from core import DB_PATH, init_db, is_restricted, log_event, resolve_target
+from core import DB_PATH, init_db, is_restricted, log_event, render_diff, resolve_target, safe
 
 REVIEWER = "human"
-
-
-def safe(text: str) -> str:
-    """Agent-controlled text must not be able to drive the terminal."""
-    return "".join(
-        c if c in "\n\t" or c.isprintable() else f"\\x{ord(c):02x}" for c in text
-    )
 
 
 def connect() -> sqlite3.Connection:
@@ -53,16 +45,6 @@ def set_status(conn, proposal_id: int, status: str) -> int:
 
 def file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else ""
-
-
-def render_diff(path: str, old: str, new: str) -> str:
-    diff = difflib.unified_diff(
-        old.splitlines(keepends=True),
-        new.splitlines(keepends=True),
-        fromfile=f"a/{path}",
-        tofile=f"b/{path}",
-    )
-    return safe("".join(diff)) or "(no textual changes)"
 
 
 def write_atomic(target: Path, content: str) -> None:
