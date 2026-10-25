@@ -5,4 +5,4 @@ def greet(name: str) -> str:
 
 
 if __name__ == "__main__":
-    print(greet("world"))
+    print(greet("world"))# sneaky local edit
